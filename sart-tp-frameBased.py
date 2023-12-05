@@ -1,3 +1,11 @@
+'''
+Nicholas C. Dunn
+Sustained Attention to Response Task with Thought Probes (SART-TP)
+PsychoPy
+12/4/2023
+v0.5
+'''
+
 from __future__ import absolute_import, division
 from ast import withitem
 
@@ -24,7 +32,7 @@ os.chdir(_thisDir)
 # Store info about the experiment session
 psychopyVersion = '2021.2.2'
 expName = 'SART-TP'  # from the Builder filename that created this script
-expInfo = {'participant': '', 'session': '1'}
+expInfo = {'participant': '', 'session': '1', 'practice': ('No', 'Yes')}
 dlg = gui.DlgFromDict(dictionary=expInfo, sortKeys=False, title=expName)
 if dlg.OK == False:
     core.quit()  # user pressed cancel
@@ -68,10 +76,32 @@ refresh = 1.0/60.0
 # Create default keyboard
 defaultKeyboard = keyboard.Keyboard()
 
+# Create default instruction stimulus
+instrStim = visual.TextStim(win)
+
+# Create fixation stimulus
+fixStim = visual.TextStim(win, text='+', font='Open Sans')
+
+instr1 = 'Welcome to the SART-TP'
+instr2 = 'In this task, you will see numbers from 0 to 9. You are to press <spacebar> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <spacebar>.'
+instr3 = 'Occasionally, you will be asked whether your mind was on task. If your mind was on task, press <left>. If your mind was off task, press <right>.'
+instr4 = 'You will also be asked to occasionally recall the last digit you saw. If the digit is the last number you saw, press <left>. If it was not the last digit you saw, press <right>.'
+instr5 = 'You are now ready to complete the task. Before starting, you will see a countdown appear. Once the countdown ends, you will begin the task.'
+
+instrList = [instr1, instr2, instr3, instr4, instr5]
+            
 # Create default visual stimulus
 stim = visual.TextStim(win)
 
-# Set durations
+# Create probe 1 response stimuli
+probe1Resp1 = visual.TextStim(win, 'On task \n <left>', font='Open Sans', pos=(-.5,-.5))
+probe1Resp2 = visual.TextStim(win, 'Off Task \n <right>', font='Open Sans', pos=(.5,-.5))
+
+# Create probe 2 response stimuli
+probe2Resp1 = visual.TextStim(win, 'Yes \n <left>', font='Open Sans', pos=(-.5,-.5))
+probe2Resp2 = visual.TextStim(win, 'No \n <right>', font='Open Sans', pos=(.5,-.5))
+
+# Set durations (seconds)
 numISI = 2
 numDur = .5
 probeISI = 5
@@ -89,32 +119,70 @@ totalProbeFrames = int(probeFrames + probeISIFrames)
 blockFiles = ['CDSImagingPilotProtocol_TimingsBlock1.xlsx']
 blockCount = 1
 
-# Initialize global clock
+# Initialize clocks
 globalClock = core.Clock()
 trialClock = core.Clock()
+countdownTimer = core.CountdownTimer()
 
-win.recordFrameIntervals = True
-win.refreshThreshold = 1.0/6.0 + 0.004
+win.recordFrameIntervals = True # enables framerate tracking
+win.refreshThreshold = 1.0/6.0 + 0.004 # sets the tolerance before considering a frame dropped
 
-# Experiment loop
+for instr in instrList:
+    countdownTimer.reset()
+    countdownTimer.add(10)
+    while countdownTimer.getTime() > 0:
+        instrStim.setText(instr)
+        instrStim.draw()
+        win.flip()
+
+countdownTimer.reset()
+
+countdown = 60
+for sec in range(60):
+    countdownTimer.add(1)
+    while countdownTimer.getTime() > 0:
+        instrStim.setText(countdown)
+        instrStim.draw()
+        win.flip()
+    countdown-=1
+    
+
+# Experiment loop - opens block condition files sequentially
 for block in blockFiles:
+    # Initialize trial handler (PsychoPy function)
     trials = data.TrialHandler(nReps=1, method='sequential', trialList=data.importConditions(block))
+   
+    # Reset global clock to track time across each block
     globalClock.reset()
+    
+    # Initialize trial count to be added to .csv
     trialCount=0
+    
+    # Trial loop - loops through trials within a given block (i.e., rows in the condition files)
     for trial in trials:
+        # Reset trial clock each loop
         trialClock.reset()
+        
+        # Logs trial start time
         startTime = trialClock.getTime() * 1000
         logging.log(level=logging.EXP, msg=f"Trial start: {startTime}")
+        
+        # Clears keyboard events
         event.clearEvents(eventType='keyboard')
-
+        
+        # Sets stimulus to be the stimulus from conditions file for the given loop
         stimulus = trial['stimulus']
         stim.setText(stimulus)
         
         stimOnset = None
         subResp=[]
-        corrAns=[]
+        # corrAns=[]
+        corrAns = trial['corrAns']
+        correct = 0
         respTime=None
         count=-1
+        onTask = 0
+        mindwander = ''
         trialType = trial['trialType']
         if trial['trialType'] == 'Target' or trial['trialType'] == 'Non-target':
             for frameN in range(totalNumFrames):
@@ -131,29 +199,35 @@ for block in blockFiles:
             
                 if numFrames < frameN < (totalNumFrames):
                     stimOffset = globalClock.getTime()
+                    fixStim.draw()
                     win.flip()
                     
                     if frameN == (totalNumFrames-1):
                         print('End ISI frame =', frameN)
             
                 keys = event.getKeys(keyList=['space'])
+                
+                
                 if keys:
                     count+=1
                     if count==0:
                         respTime = trialClock.getTime()
                         subResp = keys
-                        if trial['stimulus'] != 3 and subResp[0] == 'space':
-                            corrAns=1
-                        else:
-                            corrAns=0
+                        if subResp[0] == corrAns:
+                            print(subResp[0])
+                            print(subResp)
+                            print(subResp[0] == corrAns)
+                            correct = 1     
             trialCount+=1
-            print(trialCount, stimulus, subResp, respTime, corrAns)
-        else:
+            print(trialCount, stimulus, subResp, respTime, corrAns)            
+        elif trial['trialType'] == "Probe 1":
             for frameN in range(totalProbeFrames):
                 
                 if 0 <= frameN <= (probeFrames):
                    
                     stim.draw()
+                    probe1Resp1.draw()
+                    probe1Resp2.draw()
                     win.flip()
                     
                     if frameN == 0:
@@ -164,18 +238,56 @@ for block in blockFiles:
                         
                 
                 if probeFrames < frameN < (totalProbeFrames):
+                    fixStim.draw()
                     win.flip()
                     
                     if frameN == (totalProbeFrames-1):
                         print('End ISI frame =', frameN)
                 
-                keys = event.getKeys(keyList=['y', 'n'])
+                keys = event.getKeys(keyList=['left', 'right'])
                 if keys:
                     count+=1
                     if count==0:
                         respTime = trialClock.getTime()
                         subResp = keys
-                        corrAns = ''   
+                        if subResp[0] == 'left':
+                            mindwander = 1
+                        if subResp[0] == 'right':
+                            mindwander = 0
+                correct = ''
+            trialCount+=1
+        else:
+            for frameN in range(totalProbeFrames):
+                
+                if 0 <= frameN <= (probeFrames):
+                   
+                    stim.draw()
+                    probe2Resp1.draw()
+                    probe2Resp2.draw()
+                    win.flip()
+                    
+                    if frameN == 0:
+                         stimOnset = globalClock.getTime()
+                    
+                    if frameN == probeFrames:
+                        print('End probe frame =', frameN)
+                        
+                
+                if probeFrames < frameN < (totalProbeFrames):
+                    fixStim.draw()
+                    win.flip()
+                    
+                    if frameN == (totalProbeFrames-1):
+                        print('End ISI frame =', frameN)
+                
+                keys = event.getKeys(keyList=['left', 'right'])
+                if keys:
+                    count+=1
+                    if count==0:
+                        respTime = trialClock.getTime()
+                        subResp = keys
+                        if subResp[0] == corrAns:
+                            correct = 1   
             trialCount+=1
             print(trialCount, stimulus, subResp, respTime, corrAns)
         
@@ -184,6 +296,8 @@ for block in blockFiles:
         endTime = trialClock.getTime() * 1000
         logging.log(level=logging.EXP, msg=f"Trial end: {endTime}")
         logging.log(level=logging.EXP, msg=f"Global Clock:{globalClock.getTime()}")
+        
+        # Add data to .csv file after each trial loop
         thisExp.addData('block', blockCount)
         thisExp.addData('trial', trialCount)
         thisExp.addData('trialType', trialType)
@@ -191,16 +305,17 @@ for block in blockFiles:
         thisExp.addData('stimulusOnset', stimOnset*1000)
         thisExp.addData('trialDuration', endTime)
         if subResp == []:
-            thisExp.addData('subResp', '')
+            thisExp.addData('key', '')
         else:
-            thisExp.addData('subResp',subResp[0])
-        if corrAns == []:  # we had a response
-            thisExp.addData('corrAns', '')
-        else:
-            thisExp.addData('corrAns', corrAns)
+            thisExp.addData('key',subResp[0])
         if respTime != None:  # we had a response
             thisExp.addData('rt', respTime)
+        thisExp.addData('correct', correct)
+        if trial['trialType'] == 'Probe 1':
+            thisExp.addData('mindwander', mindwander)
         
+        
+        # Prepares .csv by going to next row
         thisExp.nextEntry()
         
         print('Overall, %i frames were dropped.' % win.nDroppedFrames)
@@ -208,6 +323,8 @@ for block in blockFiles:
             win.close()
             core.quit()
     blockCount+=1
+
+
 
 win.flip()
 
