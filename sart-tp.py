@@ -1,147 +1,336 @@
-from __future__ import absolute_import, division
-from ast import withitem
+'''
+Sustained Attention to Response Task with Thought Probes (SART-TP)
+Version: 1.0
+Updated: 12-18-2023
+By: Nicholas C. Dunn
+'''
 
+import os
+import sys
 from psychopy import locale_setup
 from psychopy import prefs
-from psychopy import sound, gui, visual, core, data, event, logging, clock, colors
+from psychopy import sound, gui, visual, core, data, event, logging, clock, colors, monitors
+from psychopy.hardware import keyboard
 from psychopy.constants import (NOT_STARTED, STARTED, PLAYING, PAUSED,
                                 STOPPED, FINISHED, PRESSED, RELEASED, FOREVER)
-
-import numpy as np  # whole numpy lib is available, prepend 'np.'
-from numpy import (sin, cos, tan, log, log10, pi, average,
-                   sqrt, std, deg2rad, rad2deg, linspace, asarray)
-from numpy.random import random, randint, normal, shuffle, choice as randchoice
-import os  # handy system and path functions
-import sys  # to get file system encoding
+import numpy as np
 import pandas as pd
 
-from psychopy.hardware import keyboard
+# Constants
+PSYCHOPY_VERSION = '2021.2.2'
+EXP_NAME = 'SART-TP'
+FRAME_TOLERANCE = 0.0001
+REFRESH_RATE = 1.0 / 60.0
+NUM_ISI = 1.8
+NUM_DURATION = 0.5
+PROBE1_ISI = 0
+PROBE1_DURATION = 5
+PROBE2_ISI = 5
+PROBE2_DURATION = 5
+INSTRUCTIONS = [
+    'Welcome to the SART-TP',
+    'In this task, you will see numbers from 0 to 9. You are to press <spacebar> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <spacebar>.',
+    'Occasionally, you will be asked whether your mind was on task. If your mind was on task, press <left>. If your mind was off task, press <right>.',
+    'If your mind was on-task, you will asked to press the <left> or <right> button.',
+    'If your mind was off-task, you will be asked whether your mind was externally distracted or if you were daydreaming.',
+    'Remember, work as quickly as you can without making mistakes.',
+    'You are now ready to complete the task. Before starting, you will see a countdown appear. Once the countdown ends, you will begin the task.'
+]
 
-# Ensure that relative paths start from the same directory as this script
-_thisDir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(_thisDir)
+# Initial Setup
+this_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(this_dir)
+exp_info = {'participant': '', 'session': '1', 'practice': ('No', 'Yes')}
+dlg = gui.DlgFromDict(dictionary = exp_info, sortKeys=False, title=EXP_NAME)
+if not dlg.OK:
+    core.quit()
+exp_info['date'] = data.getDateStr()
+exp_info['expName'] = EXP_NAME
+exp_info['psychopyVersion'] = PSYCHOPY_VERSION
+filename = this_dir + os.sep + f'data/{exp_info["participant"]}_{EXP_NAME}_{exp_info["date"]}'
 
-# Store info about the experiment session
-psychopyVersion = '2021.2.2'
-expName = 'SART-TP'  # from the Builder filename that created this script
-expInfo = {'participant': '', 'session': '1'}
-dlg = gui.DlgFromDict(dictionary=expInfo, sortKeys=False, title=expName)
-if dlg.OK == False:
-    core.quit()  # user pressed cancel
-expInfo['date'] = data.getDateStr()  # add a simple timestamp
-expInfo['expName'] = expName
-expInfo['psychopyVersion'] = psychopyVersion
-
-# Data file name stem = absolute path + name; later add .psyexp, .csv, .log, etc
-filename = _thisDir + os.sep + u'data/%s_%s_%s' % (expInfo['participant'], expName, expInfo['date'])
-
-# An ExperimentHandler isn't essential but helps with data saving
-thisExp = data.ExperimentHandler(name=expName, version='',
-    extraInfo=expInfo, runtimeInfo=None,
-    originPath='C:\\Users\\dun5yn\\OneDrive - cchmc\\Documents\\06 - Neuroimaging Study\\SART\\SART-TP.py',
+# Experiment Handler
+thisExp = data.ExperimentHandler(
+    name=EXP_NAME, version='',
+    extraInfo=exp_info, runtimeInfo=None,
+    originPath='D:\\SART\\sart-tp-frameBased.py', 
     savePickle=True, saveWideText=True,
-    dataFileName=filename)
-# save a log file for detail verbose info
-logFile = logging.LogFile(filename+'.log', level=logging.EXP)
-logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file
+    dataFileName=filename
+)
+log_file = logging.LogFile(filename + '.log', level=logging.EXP)
+logging.console.setLevel(logging.WARNING)
 
-endExpNow = False  # flag for 'escape' or other condition => quit the exp
-frameTolerance = 0.001  # how close to onset before 'same' frame
+# Window Setup
+monitor = monitors.Monitor('monitor')
+window = visual.Window(monitor=monitor)
+exp_info['frameRate'] = window.getActualFrameRate()
+frame_dur = 1.0 / round(exp_info['frameRate']) if exp_info['frameRate'] else REFRESH_RATE
 
-#-------------------EXPERIMENT CODE---------------------------------------------
+# Stimuli
+kb = keyboard.Keyboard()
+instr_stim = visual.TextStim(window)
+stim = visual.TextStim(window)
+probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5))
+probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5))
+probe2_resp1 = visual.TextStim(window, 'Left', font='Open Sans', pos=(-.5,-.5))
+probe2_resp2 = visual.TextStim(window, 'Right', font='Open Sans', pos=(.5,-.5))
+probe2_resp3 = visual.TextStim(window, 'External Distraction', font='Open Sans', pos=(-.5,-.5))
+probe2_resp4 = visual.TextStim(window, 'Daydreaming', font='Open Sans', pos=(.5,-.5))
+vertical_line = visual.TextStim(window, '|', font='Open Sans', pos=(0, -.5))
 
-# Setup window
-win = visual.Window(
-    size=(2560, 1440), fullscr=True, screen=0,
-    winType='pyglet', allowGUI=False, allowStencil=False,
-    monitor='testMonitor', color=[0,0,0], colorSpace='rgb',
-    blendMode='avg', useFBO=True, units='deg')
+# Frames
+num_frames = int(NUM_DURATION / REFRESH_RATE)
+num_isi_frames = int(NUM_ISI / REFRESH_RATE)
+total_num_frames = int(num_frames + num_isi_frames)
+probe1_frames = int(PROBE1_DURATION / REFRESH_RATE)
+probe1_isi_frames = int(PROBE1_ISI / REFRESH_RATE)
+total_probe1_frames = int(probe1_frames + probe1_isi_frames)
+probe2_frames = int(PROBE2_DURATION / REFRESH_RATE)
+probe2_isi_frames = int(PROBE2_ISI / REFRESH_RATE)
+total_probe2_frames = int(probe2_frames + probe2_isi_frames)
 
-# Store monitor framerate
-expInfo['frameRate'] = win.getActualFrameRate()
-if expInfo['frameRate'] != None:
-    frameDur = 1.0 / round(expInfo['frameRate'])
+# Counts
+block_count = 1
+
+# Global Clock
+global_clock = core.Clock()
+
+def display_instructions(instructions, duration=1):
+    '''
+    Displays a list of instructions on the screen, each for a specified duration.
+    
+    Parameters:
+    instructions (list): a list of strings, where each string is an instruction slide.
+    duration (int or float): the duration for which each instruction is displayed on the screen in seconds.
+    '''
+    for instr in instructions:
+        instr_stim.setText(instr)
+        instruction_timer = core.CountdownTimer(duration)
+        while instruction_timer.getTime() > 0:
+            instr_stim.draw()
+            window.flip()
+
+def display_break(start_number):
+    '''
+    Displays a countdown break from the specified start number down to 1.
+    
+    Parameters:
+    start_number (int): the number from which the countdown starts.
+    '''
+    for sec in range(start_number, 0, -1):
+        instr_stim.setText(str(sec))
+        break_timer = core.CountdownTimer(1)
+        while break_timer.getTime() > 0:
+            instr_stim.draw()
+            window.flip()
+    global_clock.reset()
+            
+def initialize_trial_handler(block):
+    '''
+    Initializes the PsychoPy trial handler for the specified block condition file.
+    
+    Parameters:
+    block (str): the string for the block condition file in the list of blocks.
+    '''
+    return data.TrialHandler(nReps=1, method='sequential', trialList=data.importConditions(block))
+    
+def add_trial_data(trial, stim_onset, end_time):
+    '''
+    Handles adding trial data to excel output file.
+    
+    Parameters:
+    trial (dict): a dictionary containing trial information.
+    '''
+    thisExp.addData('block', block_count)
+    thisExp.addData('trial', trial_count)
+    thisExp.addData('trial_type', trial['trialType'])
+    thisExp.addData('stimulus', trial['stimulus'])
+    thisExp.addData('stim_onset', stim_onset*1000)
+    thisExp.addData('trial_duration', end_time)
+            
+def run_number_trial(trial, trial_clock, total_num_frames, num_frames):
+    '''
+    Handles the logic for a number rial, including displaying stimuli and recording responses.
+    
+    Parameters:
+    trial (dict): a dictionary containing trial information.
+    trial_clock (function): a Clock function from Psychopy.
+    total_num_frames (int): the total number of frames for the trial.
+    num_frames (int): the number of frames the stimulus is displayed.
+    '''
+    trial_clock.reset()
+    correct=0
+    sub_resp = None
+    kb.clock.reset()
+    for frame_n in range(total_num_frames):
+        if 0 <= frame_n < num_frames:
+            stim.setText(trial['stimulus'])
+            stim.draw()
+            window.flip()
+            if frame_n == 0:
+                stim_onset = global_clock.getTime()
+        elif num_frames <= frame_n < total_num_frames:
+            window.flip()
+    keys = kb.getKeys(['space'])
+    rt = '' 
+    for key in keys:
+        if key.name == 'space':
+            rt = key.rt
+            sub_resp = key.name
+            correct = 1 if key.name == trial['corrAns'] else 0
+            break
+    if not keys and trial['corrAns'] is None:
+        correct = 1   
+    end_time = trial_clock.getTime() * 1000            
+    add_trial_data(trial, stim_onset, end_time)
+    thisExp.addData('rt', rt)
+    thisExp.addData('response', sub_resp)
+    thisExp.addData('correct', correct)
+    
+def run_probe1_trial(trial, trial_clock, total_probe1_frames, probe1_frames):
+    '''
+    Handles the logic for a probe1 trial, including displaying stimuli and recording responses.
+    
+    Parameters:
+    trial (dict): a dictionary containing trial information.
+    trial_clock (function): a Clock function from Psychopy.
+    total_probe1_frames (int): the total number of frames for the probe1 display and response.
+    probe1_frames (int): number of frames that the probe1 stimulus is displayed.
+    '''
+    trial_clock.reset()
+    stim_displayed = True
+    sub_resp = None
+    probe1 = 0
+    previous_resp = 0
+    kb.clock.reset()
+    for frame_n in range(total_probe1_frames):
+        if 0 <= frame_n <= probe1_frames and stim_displayed:
+            stim.draw()
+            probe1_resp1.draw()
+            probe1_resp2.draw()
+            vertical_line.draw()
+            if frame_n == 0:
+                stim_onset = global_clock.getTime()
+        keys = kb.getKeys(['left', 'right'])
+        for key in keys:
+            rt = key.rt
+            sub_resp = key.name
+            probe1 = 1 if key.name == 'left' else 0
+            previous_resp = probe1
+            if 0 <= frame_n <= probe1_frames:
+                stim_displayed = False
+        window.flip()
+    end_time = trial_clock.getTime() * 1000          
+    add_trial_data(trial, stim_onset, end_time)
+    thisExp.addData('rt', rt)
+    thisExp.addData('response', sub_resp)
+    thisExp.addData('probe1', probe1)
+    
+    return previous_resp
+    
+def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, probe2_frames):
+    '''
+    Handles the logic for a probe2 trial, including displaying stimuli and recording responses.
+    
+    trial (dict): a dictionary containing trial information.
+    trial_clock (function): a Clock function from Psychopy.
+    previous_resp (int): calls run_probe1_trial to return previous probe1 response and determines stimulus in probe2.
+    tota2_probe1_frames (int): the total number of frames for the probe2 display and response.
+    probe2_frames (int): number of frames that the probe2 stimulus is displayed.
+    '''
+    trial_clock.reset()
+    stim_displayed = True
+    sub_resp = None
+    probe2 = None
+    kb.clock.reset()
+    if previous_resp == 1:
+        for frame_n in range(total_probe2_frames):
+            if 0 <= frame_n < probe2_frames and stim_displayed:
+                stim.draw()
+                probe2_resp1.draw()
+                probe2_resp2.draw()
+                vertical_line.draw()
+                if frame_n == 0:
+                    stim_onset = global_clock.getTime()  
+            keys = kb.getKeys(['left', 'right'])
+            for key in keys:
+                rt = key.rt
+                sub_resp = key.name
+                probe2 = 1 if key.name == trial['probe2CorrAns'] else 0 # 1 = correct, 0 = incorrect
+                if 0 <= frame_n < probe2_frames:
+                    stim_displayed = False
+            window.flip()
+        end_time = trial_clock.getTime() * 1000 
+        add_trial_data(trial, stim_onset, end_time)
+        thisExp.addData('response', sub_resp)
+        thisExp.addData('rt', rt)
+        thisExp.addData('probe2', probe2)
+    elif previous_resp == 0:
+        stim.setText("Where was your mind while off-task?")
+        for frame_n in range(total_probe2_frames):
+            if 0 <= frame_n < probe2_frames and stim_displayed:
+                stim.draw()
+                probe2_resp3.draw()
+                probe2_resp4.draw()
+                vertical_line.draw()
+                if frame_n == 0:
+                    stim_onset = global_clock.getTime()
+            keys = kb.getKeys(['left', 'right'])
+            for key in keys:
+                rt = key.rt
+                sub_resp = key.name 
+                probe2 = 2 if key.name == 'left' else 3 # 2 = external distraction, 3 = daydreaming
+                if 0 <= frame_n < probe2_frames:
+                    stim_displayed = False
+            window.flip()
+        end_time = trial_clock.getTime() * 1000 
+        add_trial_data(trial, stim_onset, end_time)
+        thisExp.addData('stimulus', "Where was your mind while off-task?")
+        thisExp.addData('response', sub_resp)
+        thisExp.addData('rt', rt)
+        thisExp.addData('probe2', probe2)
+
+# Sets condition files for either practice or real experiment    
+if exp_info['practice'] == 'No':
+    block_files = [
+    'CDSImagingPilotProtocol_TimingsBlock1.xlsx', 'CDSImagingPilotProtocol_TimingsBlock2.xlsx',
+    'CDSImagingPilotProtocol_TimingsBlock3.xlsx', 'CDSImagingPilotProtocol_TimingsBlock4.xlsx'
+]
 else:
-    frameDur = 1.0 / 60.0
+    block_files = ['test2.xlsx']
 
-# Create default keyboard
-defaultKeyboard = keyboard.Keyboard()
-
-# Create default visual stimulus
-stim = visual.TextStim(win)
-
-# Initialize list of block condition files
-blockFiles = ['conditions.xlsx']
-
-
-
-# Initialize global clock
-globalClock = core.Clock()
-
-# Experiment loop
-for block in blockFiles:
-    trials = data.TrialHandler(nReps=1, method='sequential', trialList=data.importConditions(block))
-    timer = core.CountdownTimer()
-    #stimulusOffset = 0
+# Main Experiment Loop    
+display_instructions(INSTRUCTIONS, duration=1)
+for block in block_files:
+    trials = initialize_trial_handler(block)
+    display_break(5)
+    trial_count = 1
+    previous_resp = 0
+    trial_clock = core.Clock()
     for trial in trials:
-        trialClock = core.MonotonicClock()
-        startTime = trialClock.getTime() * 1000
-        logging.log(level=logging.EXP, msg=f"Trial start: {startTime}")
-
-        stimulusDuration = trial['stimulusDuration'] / 1000.0
-        isi = trial['isi'] / 1000.0
-        stimulusOnset = trial['stimulusOnset'] / 1000.0
-        #trialDuration = stimulusDuration + isi
-        #stimulusOffset += trialDuration
         stimulus = trial['stimulus']
-
-        
-        timer.add(stimulusDuration)
-        while timer.getTime() > 0:
-           stim.setText(stimulus)
-           stim.draw()
-           win.flip()
-        
-        timer.add(isi)
-        
-        while timer.getTime() > 0:
-            win.flip()
-        
-
-        # Log the end time of the trial
-        endTime = trialClock.getTime() * 1000
-        logging.log(level=logging.EXP, msg=f"Trial end: {endTime}")
-        logging.log(level=logging.EXP, msg=f"Global Clock:{globalClock.getTime()}")
-        
-        if 'escape' in event.getKeys():
-            win.close()
+        stim.setText(stimulus)
+        kb.clearEvents(eventType='keyboard')
+        if trial['trialType'] == 'Non-target' or trial['trialType'] == 'Target':
+            run_number_trial(trial, trial_clock, total_num_frames, num_frames)
+        elif trial['trialType'] == 'Probe 1':
+            previous_resp = run_probe1_trial(trial, trial_clock, total_probe1_frames, probe1_frames)
+        elif trial['trialType'] == 'Probe 2':
+            run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, probe2_frames)
+        trial_count+=1
+        thisExp.nextEntry()
+        if 'escape' in kb.getKeys():
+            window.close()
             core.quit()
+    block_count+=1
 
-win.flip()
-
+window.flip()        
 thisExp.saveAsWideText(filename+'.csv', delim='auto')
 thisExp.saveAsPickle(filename)
 logging.flush()
 
 thisExp.abort()
-win.close()
-core.quit()
-        
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+window.close()
+core.quit()        
+            
+                
