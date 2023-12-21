@@ -1,5 +1,4 @@
-# sart-tp
- Sustained Attention to Response Task with Thought Probes (SART-TP) in PsychoPy.
+# Sustained Attention to Response Task with Thought Probes (SART-TP) in PsychoPy.
 
 ## Description
 This task was developed based on the Cristoff et al. (2021) study, which used a SART with Thought Probes to assess mindwandering.
