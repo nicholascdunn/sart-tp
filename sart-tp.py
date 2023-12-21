@@ -91,28 +91,43 @@ thisExp = data.ExperimentHandler(
 log_file = logging.LogFile(filename + '.log', level=logging.EXP)
 logging.console.setLevel(logging.WARNING)
 
-# Window Setup
+# Monitor and Window Setup
 monitor = monitors.Monitor('monitor')
 window = visual.Window(size=(1920, 1080), fullscr=True)
 exp_info['frameRate'] = window.getActualFrameRate()
 frame_dur = 1.0 / round(exp_info['frameRate']) if exp_info['frameRate'] else REFRESH_RATE
 
 # Stimuli
-kb = keyboard.Keyboard()
-instr_stim = visual.TextStim(window)
-starting_stim = visual.TextStim(window, 'STARTING IN', font='Open Sans', pos=(0, .5))
-break_stim = visual.TextStim(window, 'BREAK', font='Open Sans', pos=(0, .5))
+'''
+The main stimulus is "stim." I update it depending on the trial.
+I am also using a number of other stimuli for the sake of
+remembering everything needed for the task.
+'''
+instr_stim = visual.TextStim(window) # Instructions stimulus
+starting_stim = visual.TextStim(window, 'STARTING IN', font='Open Sans', pos=(0, .5)) # Says STARTING IN
+break_stim = visual.TextStim(window, 'BREAK', font='Open Sans', pos=(0, .5)) # Says BREAK
 complete_stim = visual.TextStim(window, 'You have completed the task.\nPlease wait for assistance before exiting the MRI machine.\n Thank you!', font='Open Sans', pos=(0, 0))
-stim = visual.TextStim(window)
-probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5))
-probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5))
-probe2_resp1 = visual.TextStim(window, 'Left', font='Open Sans', pos=(-.5,-.5))
-probe2_resp2 = visual.TextStim(window, 'Right', font='Open Sans', pos=(.5,-.5))
-probe2_resp3 = visual.TextStim(window, 'External Distraction', font='Open Sans', pos=(-.5,-.5))
-probe2_resp4 = visual.TextStim(window, 'Daydreaming', font='Open Sans', pos=(.5,-.5))
-vertical_line = visual.TextStim(window, '|', font='Open Sans', pos=(0, -.5))
+stim = visual.TextStim(window) # Main stimulus
+probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5)) # Probe 1
+probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5)) # Probe 1
+probe2_resp1 = visual.TextStim(window, 'Left', font='Open Sans', pos=(-.5,-.5)) # Probe 2
+probe2_resp2 = visual.TextStim(window, 'Right', font='Open Sans', pos=(.5,-.5)) # Probe 2
+probe2_resp3 = visual.TextStim(window, 'External Distraction', font='Open Sans', pos=(-.5,-.5)) # Probe 2
+probe2_resp4 = visual.TextStim(window, 'Daydreaming', font='Open Sans', pos=(.5,-.5)) # Probe 2
+vertical_line = visual.TextStim(window, '|', font='Open Sans', pos=(0, -.5)) # Probes 1 and 2
+
+# Keyboard
+'''
+Initializes keyboard input, which we will use during the trials.
+'''
+kb = keyboard.Keyboard() 
 
 # Frames
+'''
+Variables that are used to store the calculated number of frames per trial.
+To update these to a different number of frames, change the time in seconds
+in the constants above.
+'''
 num_frames = int(NUM_DURATION / REFRESH_RATE)
 num_isi_frames = int(NUM_ISI / REFRESH_RATE)
 total_num_frames = int(num_frames + num_isi_frames)
@@ -124,11 +139,23 @@ probe2_isi_frames = int(PROBE2_ISI / REFRESH_RATE)
 total_probe2_frames = int(probe2_frames + probe2_isi_frames)
 
 # Counts
+'''
+Initializes a variable to store and increment a count to keep track of what block
+the task is currently on.
+'''
 block_count = 1
 
 # Global Clock
+'''
+Initializes our global clock, which we will use to track stimulus onsets across each block.
+'''
 global_clock = core.Clock()
 
+# Functions
+'''
+A number of functions that are called in the experiment loop. This setup is very
+modular and can be used for other types of computerized tasks.
+'''
 def display_instructions(instructions, duration):
     '''
     Displays a list of instructions on the screen, each for a specified duration.
@@ -358,7 +385,13 @@ if exp_info['practice'] == 'No':
 else:
     block_files = ['CDSImagingPilotProtocol_TimingsBlockPractice.xlsx']
 
-# Main Experiment Loop   
+# Main Experiment Loop
+'''
+This is what runs the experiment. We iterate through each block file, then through each
+trial in the block. Functions are called based on logic that checks what trialType
+the trial is. Once complete or upon exit, data is saved and an excel output is
+created.
+'''
 for block in block_files:
     if block_count == 1:
         display_instructions(INSTRUCTIONS, 10)
