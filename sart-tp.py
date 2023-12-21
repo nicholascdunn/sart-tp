@@ -29,9 +29,9 @@ PROBE2_ISI = 5
 PROBE2_DURATION = 5
 INSTRUCTIONS = [
     'Welcome to the SART-TP',
-    'In this task, you will see numbers from 0 to 9. You are to press <spacebar> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <spacebar>.',
+    'In this task, you will see numbers from 0 to 9. You are to press <left> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <left>.',
     'Occasionally, you will be asked whether your mind was on task. If your mind was on-task, press <left>. If your mind was off-task, press <right>.',
-    'If your mind was on-task, you will told to press either the <left> or <right> button.',
+    'If your mind was on-task, you will be told to press either the <left> or <right> button.',
     'If your mind was off-task, you will be asked whether your mind was externally distracted <left> or if you were daydreaming <right>.',
     'Remember, work as quickly as you can without making mistakes. If you make a mistake, just keep going.',
     'You are now ready to complete the task. Before starting, you will see a countdown appear. Once the countdown ends, you will begin the task.'
@@ -74,6 +74,7 @@ kb = keyboard.Keyboard()
 instr_stim = visual.TextStim(window)
 starting_stim = visual.TextStim(window, 'STARTING IN', font='Open Sans', pos=(0, .5))
 break_stim = visual.TextStim(window, 'BREAK', font='Open Sans', pos=(0, .5))
+complete_stim = visual.TextStim(window, 'You have completed the task.\nPlease wait for assistance before exiting the MRI machine.\n Thank you!', font='Open Sans', pos=(0, 0))
 stim = visual.TextStim(window)
 probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5))
 probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5))
@@ -100,7 +101,7 @@ block_count = 1
 # Global Clock
 global_clock = core.Clock()
 
-def display_instructions(instructions, duration=5):
+def display_instructions(instructions, duration):
     '''
     Displays a list of instructions on the screen, each for a specified duration.
     
@@ -144,6 +145,12 @@ def display_blank():
     '''
     blank_timer = core.CountdownTimer(1)
     while blank_timer.getTime() > 0:
+        window.flip()
+        
+def display_complete():
+    complete_timer = core.CountdownTimer(10)
+    while complete_timer.getTime() > 0:
+        complete_stim.draw()
         window.flip()
             
 def initialize_trial_handler(block):
@@ -192,10 +199,10 @@ def run_number_trial(trial, trial_clock, total_num_frames, num_frames):
                 stim_onset = global_clock.getTime()
         elif num_frames <= frame_n < total_num_frames:
             window.flip()
-    keys = kb.getKeys(['space'])
+    keys = kb.getKeys(['left'])
     rt = '' 
     for key in keys:
-        if key.name == 'space':
+        if key.name == 'left':
             rt = key.rt
             sub_resp = key.name
             correct = 1 if key.name == trial['corrAns'] else 0
@@ -221,6 +228,7 @@ def run_probe1_trial(trial, trial_clock, total_probe1_frames, probe1_frames):
     trial_clock.reset()
     stim_displayed = True
     sub_resp = None
+    rt = ''
     probe1 = 0
     previous_resp = 0
     kb.clock.reset()
@@ -263,6 +271,7 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
     stim_displayed = True
     sub_resp = None
     probe2 = None
+    rt = ''
     kb.clock.reset()
     if previous_resp == 1:
         for frame_n in range(total_probe2_frames):
@@ -324,7 +333,7 @@ else:
 # Main Experiment Loop   
 for block in block_files:
     if block_count == 1:
-        display_instructions(INSTRUCTIONS, duration=1)
+        display_instructions(INSTRUCTIONS, 10)
     trials = initialize_trial_handler(block)
     display_break(5, block_count)
     display_blank()
@@ -348,6 +357,7 @@ for block in block_files:
             window.close()
             core.quit()
     block_count+=1
+display_complete()
 
 window.flip()        
 thisExp.saveAsWideText(filename+'.csv', delim='auto')
