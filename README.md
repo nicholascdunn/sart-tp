@@ -1,5 +1,5 @@
 # Sustained Attention to Response Task with Thought Probes (SART-TP) 
-PsychoPy 2021.2.2\nVersion 1.0
+PsychoPy 2021.2.2\Version 1.0
 
 ## Description
 This task was developed based on the Cristoff et al. (2021) study, which used a SART with Thought Probes to assess mindwandering.
