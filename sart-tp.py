@@ -30,10 +30,10 @@ PROBE2_DURATION = 5
 INSTRUCTIONS = [
     'Welcome to the SART-TP',
     'In this task, you will see numbers from 0 to 9. You are to press <spacebar> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <spacebar>.',
-    'Occasionally, you will be asked whether your mind was on task. If your mind was on task, press <left>. If your mind was off task, press <right>.',
-    'If your mind was on-task, you will asked to press the <left> or <right> button.',
-    'If your mind was off-task, you will be asked whether your mind was externally distracted or if you were daydreaming.',
-    'Remember, work as quickly as you can without making mistakes.',
+    'Occasionally, you will be asked whether your mind was on task. If your mind was on-task, press <left>. If your mind was off-task, press <right>.',
+    'If your mind was on-task, you will told to press either the <left> or <right> button.',
+    'If your mind was off-task, you will be asked whether your mind was externally distracted <left> or if you were daydreaming <right>.',
+    'Remember, work as quickly as you can without making mistakes. If you make a mistake, just keep going.',
     'You are now ready to complete the task. Before starting, you will see a countdown appear. Once the countdown ends, you will begin the task.'
 ]
 
@@ -44,16 +44,19 @@ exp_info = {'participant': '', 'session': '1', 'practice': ('No', 'Yes')}
 dlg = gui.DlgFromDict(dictionary = exp_info, sortKeys=False, title=EXP_NAME)
 if not dlg.OK:
     core.quit()
-exp_info['date'] = data.getDateStr()
+exp_info['date'] = data.getDateStr(format="%Y-%m-%d-%H%M")
 exp_info['expName'] = EXP_NAME
 exp_info['psychopyVersion'] = PSYCHOPY_VERSION
-filename = this_dir + os.sep + f'data/{exp_info["participant"]}_{EXP_NAME}_{exp_info["date"]}'
+if exp_info['practice'] == "No":
+    filename = this_dir + os.sep + f'data/{exp_info["participant"]}_{EXP_NAME}_{exp_info["date"]}_{exp_info["session"]}'
+elif exp_info['practice'] == "Yes":
+    filename = this_dir + os.sep + f'data/{exp_info["participant"]}_{EXP_NAME}_{exp_info["date"]}_PRACTICE'
 
 # Experiment Handler
 thisExp = data.ExperimentHandler(
     name=EXP_NAME, version='',
     extraInfo=exp_info, runtimeInfo=None,
-    originPath='D:\\SART\\sart-tp-frameBased.py', 
+    originPath='D:\\SART\\sart-tp.py', 
     savePickle=True, saveWideText=True,
     dataFileName=filename
 )
@@ -62,13 +65,15 @@ logging.console.setLevel(logging.WARNING)
 
 # Window Setup
 monitor = monitors.Monitor('monitor')
-window = visual.Window(monitor=monitor)
+window = visual.Window(size=(1920, 1080), fullscr=True)
 exp_info['frameRate'] = window.getActualFrameRate()
 frame_dur = 1.0 / round(exp_info['frameRate']) if exp_info['frameRate'] else REFRESH_RATE
 
 # Stimuli
 kb = keyboard.Keyboard()
 instr_stim = visual.TextStim(window)
+starting_stim = visual.TextStim(window, 'STARTING IN', font='Open Sans', pos=(0, .5))
+break_stim = visual.TextStim(window, 'BREAK', font='Open Sans', pos=(0, .5))
 stim = visual.TextStim(window)
 probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5))
 probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5))
@@ -95,7 +100,7 @@ block_count = 1
 # Global Clock
 global_clock = core.Clock()
 
-def display_instructions(instructions, duration=1):
+def display_instructions(instructions, duration=5):
     '''
     Displays a list of instructions on the screen, each for a specified duration.
     
@@ -103,6 +108,7 @@ def display_instructions(instructions, duration=1):
     instructions (list): a list of strings, where each string is an instruction slide.
     duration (int or float): the duration for which each instruction is displayed on the screen in seconds.
     '''
+    core.wait(5) # Wait for program to be set to fullscreen before starting instructions
     for instr in instructions:
         instr_stim.setText(instr)
         instruction_timer = core.CountdownTimer(duration)
@@ -110,20 +116,35 @@ def display_instructions(instructions, duration=1):
             instr_stim.draw()
             window.flip()
 
-def display_break(start_number):
+def display_break(start_number, block_count):
     '''
     Displays a countdown break from the specified start number down to 1.
     
     Parameters:
     start_number (int): the number from which the countdown starts.
+    block_count (int): the number of the current block.
     '''
     for sec in range(start_number, 0, -1):
         instr_stim.setText(str(sec))
         break_timer = core.CountdownTimer(1)
         while break_timer.getTime() > 0:
+            if block_count == 1:
+                starting_stim.draw()
+            elif block_count > 1:
+                break_stim.draw()
             instr_stim.draw()
             window.flip()
-    global_clock.reset()
+    
+def display_blank():
+    '''
+    Displays a blank screen for 1 second.
+    
+    Parameters:
+    None
+    '''
+    blank_timer = core.CountdownTimer(1)
+    while blank_timer.getTime() > 0:
+        window.flip()
             
 def initialize_trial_handler(block):
     '''
@@ -179,7 +200,7 @@ def run_number_trial(trial, trial_clock, total_num_frames, num_frames):
             sub_resp = key.name
             correct = 1 if key.name == trial['corrAns'] else 0
             break
-    if not keys and trial['corrAns'] is None:
+    if trial['trialType'] == "Target" and not keys:
         correct = 1   
     end_time = trial_clock.getTime() * 1000            
     add_trial_data(trial, stim_onset, end_time)
@@ -294,19 +315,23 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
 if exp_info['practice'] == 'No':
     block_files = [
     'CDSImagingPilotProtocol_TimingsBlock1.xlsx', 'CDSImagingPilotProtocol_TimingsBlock2.xlsx',
-    'CDSImagingPilotProtocol_TimingsBlock3.xlsx', 'CDSImagingPilotProtocol_TimingsBlock4.xlsx'
+    'CDSImagingPilotProtocol_TimingsBlock3.xlsx', 'CDSImagingPilotProtocol_TimingsBlock4.xlsx',
+    'CDSImagingPilotProtocol_TimingsBlock5.xlsx'
 ]
 else:
-    block_files = ['test2.xlsx']
+    block_files = ['CDSImagingPilotProtocol_TimingsBlockPractice.xlsx']
 
-# Main Experiment Loop    
-display_instructions(INSTRUCTIONS, duration=1)
+# Main Experiment Loop   
 for block in block_files:
+    if block_count == 1:
+        display_instructions(INSTRUCTIONS, duration=1)
     trials = initialize_trial_handler(block)
-    display_break(5)
+    display_break(5, block_count)
+    display_blank()
     trial_count = 1
     previous_resp = 0
     trial_clock = core.Clock()
+    global_clock.reset()
     for trial in trials:
         stimulus = trial['stimulus']
         stim.setText(stimulus)
