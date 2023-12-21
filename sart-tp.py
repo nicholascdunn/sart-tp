@@ -3,7 +3,6 @@ Sustained Attention to Response Task with Thought Probes (SART-TP)
 Version: 1.0
 Updated: 12-18-2023
 By: Nicholas C. Dunn
-
 -------------------------------------------------------------------
 # Description
 
