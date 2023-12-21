@@ -48,13 +48,13 @@ import pandas as pd
 PSYCHOPY_VERSION = '2021.2.2'
 EXP_NAME = 'SART-TP'
 FRAME_TOLERANCE = 0.0001
-REFRESH_RATE = 1.0 / 60.0
-NUM_ISI = 1.8
-NUM_DURATION = 0.5
-PROBE1_ISI = 0
-PROBE1_DURATION = 5
-PROBE2_ISI = 5
-PROBE2_DURATION = 5
+REFRESH_RATE = 1.0 / 60.0 # Edit if the refresh rate of your monitor is a different Hz.
+NUM_ISI = 1.8 # Blank screen duration following a non-target/target trial
+NUM_DURATION = 0.5 # Stimulus duration for a non-target/target trial
+PROBE1_ISI = 0 # Blank screen duration following a probe 1 trial
+PROBE1_DURATION = 5 # Stimulus duration for a probe 1 trial
+PROBE2_ISI = 5 # Blank screen duration following a probe 2 trial
+PROBE2_DURATION = 5 # Stimulus duration for a probe 2 trial
 INSTRUCTIONS = [
     'Welcome to the SART-TP',
     'In this task, you will see numbers from 0 to 9. You are to press <left> each time any number EXCEPT 3 appears on the screen. If the number 3 appears, do NOT press <left>.',
@@ -80,7 +80,7 @@ if exp_info['practice'] == "No":
 elif exp_info['practice'] == "Yes":
     filename = this_dir + os.sep + f'data/{exp_info["participant"]}_{EXP_NAME}_{exp_info["date"]}_PRACTICE'
 
-# Experiment Handler
+# Experiment Handler - handles saving data during the task.
 thisExp = data.ExperimentHandler(
     name=EXP_NAME, version='',
     extraInfo=exp_info, runtimeInfo=None,
