@@ -3,7 +3,7 @@ PsychoPy 2021.2.2<br>
 Version 1.0
 
 ## Description
-This task was developed based on the Cristoff et al. (2021) study, which used a SART with Thought Probes to assess mindwandering.
+This task was developed based on the Cristoff et al. (2009) study, which used a SART with Thought Probes to assess mindwandering.
 We programmed this task for use in an fMRI machine. As such, frame-based timing was used to ensure millisecond accuracy for
 the presentation of stimuli, which is necessary for fMRI studies.
 
