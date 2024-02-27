@@ -1,7 +1,7 @@
 '''
 Sustained Attention to Response Task with Thought Probes (SART-TP)
-Version: 1.0
-Updated: 12-21-2023
+Version: 2.0
+Updated: 2-27-2024
 By: Nicholas C. Dunn
 -------------------------------------------------------------------
 # Description
@@ -96,7 +96,7 @@ logging.console.setLevel(logging.WARNING)
 
 # Window Setup
 monitor = monitors.Monitor('monitor')
-window = visual.Window(size=(1920, 1080), fullscr=False)
+window = visual.Window(size=(1920, 1080), fullscr=True)
 exp_info['frameRate'] = window.getActualFrameRate()
 frame_dur = 1.0 / round(exp_info['frameRate']) if exp_info['frameRate'] else REFRESH_RATE
 
@@ -105,13 +105,13 @@ kb = keyboard.Keyboard()
 instr_stim = visual.TextStim(window)
 starting_stim = visual.TextStim(window, 'STARTING IN', font='Open Sans', pos=(0, .5))
 break_stim = visual.TextStim(window, 'BREAK', font='Open Sans', pos=(0, .5))
-complete_stim = visual.TextStim(window, 'You have completed the task.\nPlease wait for assistance before exiting the MRI machine.\n Thank you!', font='Open Sans', pos=(0, 0))
+complete_stim = visual.TextStim(window, 'You have completed the task.\n\nThank you!', font='Open Sans', pos=(0, 0))
 stim = visual.TextStim(window)
 probe1_resp1 = visual.TextStim(window, 'On-Task', font='Open Sans', pos=(-.5,-.5))
 probe1_resp2 = visual.TextStim(window, 'Off-Task', font='Open Sans', pos=(.5,-.5))
 probe2_resp1 = visual.TextStim(window, 'Left', font='Open Sans', pos=(-.5,-.5))
 probe2_resp2 = visual.TextStim(window, 'Right', font='Open Sans', pos=(.5,-.5))
-probe2_resp3 = visual.TextStim(window, 'External Distraction', font='Open Sans', pos=(-.5,-.5))
+probe2_resp3 = visual.TextStim(window, 'Externally Distracted', font='Open Sans', pos=(-.5,-.5))
 probe2_resp4 = visual.TextStim(window, 'Daydreaming', font='Open Sans', pos=(.5,-.5))
 vertical_line = visual.TextStim(window, '|', font='Open Sans', pos=(0, -.5))
 
@@ -131,6 +131,7 @@ block_count = 1
 
 # Global Clock
 global_clock = core.Clock()
+timestamp_clock = core.Clock()
 
 def display_instructions(instructions, duration):
     '''
@@ -174,7 +175,7 @@ def display_blank():
     Parameters:
     None
     '''
-    blank_timer = core.CountdownTimer(1)
+    blank_timer = core.CountdownTimer(5)
     while blank_timer.getTime() > 0:
         window.flip()
         
@@ -204,7 +205,7 @@ def add_trial_data(trial, stim_onset, end_time):
     thisExp.addData('trial', trial_count)
     thisExp.addData('trial_type', trial['trialType'])
     thisExp.addData('stimulus', trial['stimulus'])
-    thisExp.addData('stim_onset', stim_onset*1000)
+    thisExp.addData('stim_onset', stim_onset)
     thisExp.addData('trial_duration', end_time)
             
 def run_number_trial(trial, trial_clock, total_num_frames, num_frames):
@@ -227,22 +228,28 @@ def run_number_trial(trial, trial_clock, total_num_frames, num_frames):
             stim.draw()
             window.flip()
             if frame_n == 0:
-                stim_onset = global_clock.getTime()
+                stim_onset = global_clock.getTime() * 1000
         elif num_frames <= frame_n < total_num_frames:
             window.flip()
     keys = kb.getKeys(['left'])
-    rt = '' 
+    rt = None
+    timestamp = None
     for key in keys:
         if key.name == 'left':
-            rt = key.rt
+            rt = key.rt*1000
             sub_resp = key.name
             correct = 1 if key.name == trial['corrAns'] else 0
+            timestamp = (float(rt) + float(stim_onset))
             break
+        
+    #timestamp = float(rt) + float(stim_onset)     
     if trial['trialType'] == "Target" and not keys:
-        correct = 1   
+        correct = 1
+    
     end_time = trial_clock.getTime() * 1000            
     add_trial_data(trial, stim_onset, end_time)
     thisExp.addData('rt', rt)
+    thisExp.addData('timestamp', timestamp)
     thisExp.addData('response', sub_resp)
     thisExp.addData('correct', correct)
     
@@ -258,31 +265,38 @@ def run_probe1_trial(trial, trial_clock, total_probe1_frames, probe1_frames):
     '''
     trial_clock.reset()
     stim_displayed = True
+    response_captured = False
     sub_resp = None
-    rt = ''
+    rt = None
     probe1 = 0
     previous_resp = 0
     kb.clock.reset()
+    timestamp = None
     for frame_n in range(total_probe1_frames):
-        if 0 <= frame_n <= probe1_frames and stim_displayed:
+        if 0 <= frame_n <= probe1_frames and response_captured == False:
             stim.draw()
             probe1_resp1.draw()
             probe1_resp2.draw()
             vertical_line.draw()
             if frame_n == 0:
-                stim_onset = global_clock.getTime()
+                stim_onset = global_clock.getTime() * 1000
         keys = kb.getKeys(['left', 'right'])
         for key in keys:
-            rt = key.rt
+            rt = key.rt*1000
+            timestamp = float(rt) + float(stim_onset)
             sub_resp = key.name
             probe1 = 1 if key.name == 'left' else 0
             previous_resp = probe1
-            if 0 <= frame_n <= probe1_frames:
-                stim_displayed = False
+            # if 0 <= frame_n <= probe1_frames:
+            stim_displayed = False
+            response_captured = True
         window.flip()
+        if response_captured:
+            break
     end_time = trial_clock.getTime() * 1000          
     add_trial_data(trial, stim_onset, end_time)
     thisExp.addData('rt', rt)
+    thisExp.addData('timestamp', timestamp)
     thisExp.addData('response', sub_resp)
     thisExp.addData('probe1', probe1)
     
@@ -302,8 +316,9 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
     stim_displayed = True
     sub_resp = None
     probe2 = None
-    rt = ''
+    rt = None
     kb.clock.reset()
+    timestamp = None
     if previous_resp == 1:
         for frame_n in range(total_probe2_frames):
             if 0 <= frame_n < probe2_frames and stim_displayed:
@@ -312,11 +327,12 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
                 probe2_resp2.draw()
                 vertical_line.draw()
                 if frame_n == 0:
-                    stim_onset = global_clock.getTime()  
+                    stim_onset = global_clock.getTime() * 1000 
             keys = kb.getKeys(['left', 'right'])
             for key in keys:
-                rt = key.rt
+                rt = key.rt*1000
                 sub_resp = key.name
+                timestamp = float(rt) + float(stim_onset)
                 probe2 = 1 if key.name == trial['probe2CorrAns'] else 0 # 1 = correct, 0 = incorrect
                 if 0 <= frame_n < probe2_frames:
                     stim_displayed = False
@@ -325,6 +341,7 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
         add_trial_data(trial, stim_onset, end_time)
         thisExp.addData('response', sub_resp)
         thisExp.addData('rt', rt)
+        thisExp.addData('timestamp', timestamp)
         thisExp.addData('probe2', probe2)
     elif previous_resp == 0:
         stim.setText("Where was your mind while off-task?")
@@ -335,10 +352,11 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
                 probe2_resp4.draw()
                 vertical_line.draw()
                 if frame_n == 0:
-                    stim_onset = global_clock.getTime()
+                    stim_onset = global_clock.getTime() * 1000
             keys = kb.getKeys(['left', 'right'])
             for key in keys:
-                rt = key.rt
+                rt = key.rt*1000
+                timestamp = float(rt) + float(stim_onset)
                 sub_resp = key.name 
                 probe2 = 2 if key.name == 'left' else 3 # 2 = external distraction, 3 = daydreaming
                 if 0 <= frame_n < probe2_frames:
@@ -349,8 +367,9 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
         thisExp.addData('stimulus', "Where was your mind while off-task?")
         thisExp.addData('response', sub_resp)
         thisExp.addData('rt', rt)
+        thisExp.addData('timestamp', timestamp)
         thisExp.addData('probe2', probe2)
-
+        
 # Sets condition files for either practice or real experiment    
 if exp_info['practice'] == 'No':
     block_files = [
@@ -364,14 +383,14 @@ else:
 # Main Experiment Loop   
 for block in block_files:
     if block_count == 1:
-        display_instructions(INSTRUCTIONS, 10)
+        display_instructions(PRACTICE_INSTRUCTIONS, 10)
     trials = initialize_trial_handler(block)
     display_break(5, block_count)
     display_blank()
     trial_count = 1
     previous_resp = 0
     trial_clock = core.Clock()
-    global_clock.reset()
+    # global_clock.reset()
     for trial in trials:
         stimulus = trial['stimulus']
         stim.setText(stimulus)
