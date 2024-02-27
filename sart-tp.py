@@ -373,12 +373,12 @@ def run_probe2_trial(trial, trial_clock, previous_resp, total_probe2_frames, pro
 # Sets condition files for either practice or real experiment    
 if exp_info['practice'] == 'No':
     block_files = [
-    'CDSImagingPilotProtocol_TimingsBlock1.xlsx', 'CDSImagingPilotProtocol_TimingsBlock2.xlsx',
-    'CDSImagingPilotProtocol_TimingsBlock3.xlsx', 'CDSImagingPilotProtocol_TimingsBlock4.xlsx',
-    'CDSImagingPilotProtocol_TimingsBlock5.xlsx'
+    'Block1.xlsx', 'Block2.xlsx',
+    'Block3.xlsx', 'Block4.xlsx',
+    'Block5.xlsx'
 ]
 else:
-    block_files = ['CDSImagingPilotProtocol_TimingsBlockPractice.xlsx']
+    block_files = ['BlockPractice.xlsx']
 
 # Main Experiment Loop   
 for block in block_files:
